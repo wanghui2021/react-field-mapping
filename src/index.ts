@@ -1,5 +1,9 @@
 import FieldMapping from './fieldMapping';
 
-export {FieldMapping};
+export { FieldMapping };
 export default FieldMapping;
-window.FieldMapping = FieldMapping;
+
+if (typeof window !== 'undefined') {
+  // expose for UMD/global usage when loaded directly in a browser
+  (window as any).FieldMapping = FieldMapping;
+}

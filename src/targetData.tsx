@@ -1,142 +1,143 @@
-/* @author yanjun.zsj
- * @date 2018.11
-*/
-import React from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import Sortable from 'sortablejs';
 import Columns from './Columns';
 import { XDataProps, XDataState, DataTypes } from './types';
 
-class TargetData extends React.Component<XDataProps, XDataState> {
-  boxEle: Element;
+const TargetData = forwardRef<any, XDataProps>((props, ref) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const sortableRef = useRef<any>(null);
+  const orderRef = useRef<string[]>([]);
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      activeKey: null,
-      sorting: false
-    };
-  }
-  // 由于sortablejs直接操作dom，不符合受控组件逻辑，现在每次改变排序一次，render触发4次：
-  // 1、sortjs改变dom；
-  // 2、改变受控组件原始数据排序；
-  // 3、由于受控组件直接改变了原始数据的排序，所以sortablejs改变的sort需要还原
-  // 4、sort还原后 需要重新触发render，改变currentActive位置
-  // 后续优化
-  componentDidMount(): void {
-    const { isSort } = this.props;
-    const ele = this.boxEle.querySelector('.column-content');
-    let order = [];
-    if (isSort) {
-      const sortable =  new Sortable(ele, {
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [sorting, setSorting] = useState<boolean>(false);
+
+  useImperativeHandle(ref, () => ({
+    boxEle: rootRef.current
+  }), []);
+
+  useEffect(() => {
+    const exposed = { boxEle: rootRef.current };
+    const pRef: any = (props as any).ref;
+    if (typeof pRef === 'function') {
+      pRef(exposed);
+      return () => pRef(null);
+    } else if (pRef && typeof pRef === 'object') {
+      pRef.current = exposed;
+      return () => { pRef.current = null; };
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootRef.current]);
+
+  useEffect(() => {
+    const { isSort } = props;
+    const ele = rootRef.current && (rootRef.current.querySelector('.column-content') as HTMLElement | null);
+    if (isSort && ele) {
+      const sortable = new Sortable(ele, {
         onStart: (): void => {
-          this.setState({
-            sorting: true
-          });
+          setSorting(true);
         },
-        onEnd: (evt): void => {
-          sortable.sort(order); // sortablejs排序还原
-          this.props.changeData(evt.oldIndex, evt.newIndex);
-          this.setState({
-            sorting: false
-          });
+        onEnd: (evt: any): void => {
+          if (sortableRef.current) {
+            sortableRef.current.sort(orderRef.current);
+          }
+          props.changeData && props.changeData(evt.oldIndex, evt.newIndex);
+          setSorting(false);
         }
       });
-      order = sortable.toArray();
+      sortableRef.current = sortable;
+      orderRef.current = sortable.toArray();
+      return () => {
+        try {
+          sortable.destroy();
+        } catch (e) {
+          // ignore
+        }
+        sortableRef.current = null;
+      };
     }
-  }
-  show(data, relation, iconStatus): DataTypes[] {
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.isSort]);
+
+  const show = (data: DataTypes[] = [], relation: any = [], iconStatus: any): DataTypes[] => {
     return data.map(item => {
       let iconShow = iconStatus ? 'inherit' : 'hidden';
-      relation.map(n => {
+      relation && relation.map((n: any) => {
         if ((n.target && n.target.key) === item.key) {
           iconShow = 'inherit';
         }
       });
-      item.iconShow = iconShow;
-      return item;
+      return Object.assign({}, item, { iconShow });
     });
-  }
-  isActive(key): string {
-    const { currentRelation } = this.props;
-    if (this.state.activeKey === key) {
-      return "active";
-    } else if (currentRelation.target && currentRelation.target.key === key) {
-      return "active";
-    }
-    return "";
-  }
+  };
 
-  eventHandle(item, type, activeKey): void {
-    if (!this.state.sorting) {
-      this.setState({
-        activeKey,
-      }, () => {
-        this.props.overActive(item, "target", type);
-      });
+  const isActive = (key: string | undefined): string => {
+    if (activeKey === key) {
+      return 'active';
+    } else if (props.currentRelation && props.currentRelation.target && props.currentRelation.target.key === key) {
+      return 'active';
     }
-  }
+    return '';
+  };
 
-  render(): React.ReactElement {
-    const {
-      columns,
-      data,
-      iconStatus,
-      relation,
-      edit
-    } = this.props;
-    const columnOpt = (item, index): unknown => {
-      return {
-        "data-id": index,
-        "key": `target_${index}`,
-        "data-key": item.key,
-        "className": this.isActive(item.key),
-        "onMouseEnter": this.eventHandle.bind(this, item, "enter", item.key),
-        "onMouseLeave": this.eventHandle.bind(this, item, "leave", null),
-      };
-    };
-    const renderContent = this.show(data, relation, iconStatus);
-    return <div className="target-data" ref={(me): void => {
-      this.boxEle = me;
-    }}>
+  const eventHandle = (item: DataTypes, type: string, nextActiveKey: string | null): void => {
+    if (!sorting) {
+      setActiveKey(nextActiveKey);
+      props.overActive && props.overActive(item, 'target', type);
+    }
+  };
+
+  const {
+    columns,
+    data = [],
+    iconStatus,
+    relation,
+    edit
+  } = props as any;
+
+  const columnOpt = (item: DataTypes, index: number): unknown => ({
+    'data-id': index,
+    'data-key': item.key,
+    className: isActive(item.key),
+    onMouseEnter: () => eventHandle(item, 'enter', item.key),
+    onMouseLeave: () => eventHandle(item, 'leave', null)
+  });
+
+  const renderContent = show(data, relation, iconStatus);
+
+  return (
+    <div className="target-data" ref={rootRef}>
       <ul className="column-title">
         <li>
-        {columns.map((column, idx) => {
-            return (
-              <span
-                key={idx}
-                className="column-item"
-                title={column.title}
-                style={{
-                  width: column.width,
-                  textAlign: column.align
-                } as React.CSSProperties}
-              >
-                {column.title}
-              </span>
-            );
-          })}
+          {columns && columns.map((column: any, idx: number) => (
+            <span
+              key={idx}
+              className="column-item"
+              title={column.title}
+              style={{ width: column.width, textAlign: column.align } as React.CSSProperties}
+            >
+              {column.title}
+            </span>
+          ))}
         </li>
       </ul>
       <ul className="column-content">
-        {
-          renderContent.map((item, index) => {
-            return (
-              <Columns
-                columns={columns}
-                key={`target${index}`}
-                columnOpt={columnOpt}
-                sorting={this.state.sorting}
-                edit={edit}
-                item={item}
-                index={index}
-                type="target"
-              />
-            );
-          })
-        }
+        {renderContent.map((item, index) => (
+          <Columns
+            columns={columns}
+            key={`target_${index}`}
+            columnOpt={columnOpt}
+            sorting={sorting}
+            edit={edit}
+            item={item}
+            index={index}
+            type="target"
+          />
+        ))}
       </ul>
-    </div>;
-  }
-}
+    </div>
+  );
+});
 
 export default TargetData;

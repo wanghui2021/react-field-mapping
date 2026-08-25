@@ -1,170 +1,162 @@
-/* @author yanjun.zsj
- * @date 2018.11
-*/
-import React from 'react';
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { getOffset } from './util';
 import Line from './line';
 import _ from 'lodash';
-import { DrawLinesProps, DrawLinesState } from './types';
+import { DrawLinesProps, OneRelation } from './types';
 
 export interface DomOperateTypes {
   key: string;
   left: number;
   top: number;
 }
-const defaultState = {
-  drawing: false,
-  endX: 0,
-  endY: 0,
-  sourceData: {},
-  startX: 0,
-  startY: 0,
-};
 
-class DrawLines extends React.Component<DrawLinesProps, DrawLinesState> {
-  drawEle: HTMLElement;
+const DrawLines = forwardRef<any, DrawLinesProps>((props, ref) => {
+  const drawEleRef = useRef<HTMLDivElement | null>(null);
+  const baseXY = useRef<{ left: number; top: number }>({ left: 0, top: 0 });
+  const scrollLeftRef = useRef<number>(0);
+  const scrollTopRef = useRef<number>(0);
+  const sourceDomRef = useRef<HTMLElement | null>(null);
+  const sortableBoxRef = useRef<HTMLElement | null>(null);
 
-  static defaultProps = {
-    onDrawStart: (): void => {},
-    onDrawing: (): void => {},
-    onDrawEnd: (): void => {}
-  };
+  const [drawing, setDrawing] = useState<boolean>(false);
+  const [endX, setEndX] = useState<number>(0);
+  const [endY, setEndY] = useState<number>(0);
+  const [startX, setStartX] = useState<number>(0);
+  const [startY, setStartY] = useState<number>(0);
+  const [sourceData, setSourceData] = useState<any>(undefined);
 
-  baseXY = {
-    left: 0,
-    top: 0
-  };
+  useImperativeHandle(ref, () => ({
+    drawEle: drawEleRef.current
+  }), []);
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      ...defaultState
-    };
-  }
-
-  componentDidMount(): void {
-    this.baseXY = getOffset(this.drawEle);
-    const box = document.querySelector('.react-field-mapping-box');
-    let scrollTop = 0;
-    let scrollLeft = 0;
-    let sourceDom = null;
-    document.documentElement.onmousedown = (event): void => {
-      const eventDom = event.target as unknown as HTMLElement;
-      sourceDom = eventDom;
-      const className = eventDom && eventDom.className || '';
-      if (className && typeof className === "string" && className.indexOf("source-column-icon") > -1) {
+  useEffect(() => {
+    baseXY.current = drawEleRef.current ? getOffset(drawEleRef.current) : { left: 0, top: 0 };
+    // event handlers
+    const onMouseDown = (event: MouseEvent) => {
+      const eventDom = event.target as HTMLElement;
+      sourceDomRef.current = eventDom;
+      const className = (eventDom && (eventDom.className as string)) || '';
+      if (className && typeof className === 'string' && className.indexOf('source-column-icon') > -1) {
         event.preventDefault();
-        const relation = _.assign([], this.props.relation);
-        if (!this.props.sourceMutiple && _.find(relation, (o) => {
-          return o.source.key === this.domOperate(eventDom).key;
-        })) {
+        let relation = _.assign([], props.relation || []);
+        const key = domOperate(eventDom).key;
+        if (!props.sourceMutiple && _.find(relation, (o: any) => o.source.key === key)) {
           return;
         }
-        if (this.baseXY !== getOffset(this.drawEle)) {
-          this.baseXY = getOffset(this.drawEle);
+        if (baseXY.current.left !== (drawEleRef.current ? getOffset(drawEleRef.current).left : 0) || baseXY.current.top !== (drawEleRef.current ? getOffset(drawEleRef.current).top : 0)) {
+          baseXY.current = drawEleRef.current ? getOffset(drawEleRef.current) : baseXY.current;
         }
-        let scrollEle = box;
-        document.body.classList.add("user-select-none");
-        const sourceData = _.find(this.props.sourceData, (o) => {
-          return o.key === this.domOperate(eventDom).key;
-        });
-        this.props.onDrawStart(sourceData, this.props.relation);
-        this.props.changeIconStatus(sourceData);
-        this.setState({
-          startX: this.domOperate(eventDom).left,
-          startY: this.domOperate(eventDom).top,
-          endX: this.domOperate(eventDom).left,
-          endY: this.domOperate(eventDom).top,
-          drawing: true,
-          sourceData
-        });
-        while (scrollEle.tagName !== 'BODY') {
-          scrollTop += scrollEle.scrollTop;
-          scrollLeft += scrollEle.scrollLeft;
+        let scrollEle: HTMLElement | null = document.querySelector('.react-field-mapping-box');
+        document.body.classList.add('user-select-none');
+        const sData = _.find(props.sourceData || [], (o: any) => o.key === key);
+        props.onDrawStart && props.onDrawStart(sData, props.relation);
+        props.changeIconStatus && props.changeIconStatus(sData);
+        const { left, top } = domOperate(eventDom);
+        setStartX(left);
+        setStartY(top);
+        setEndX(left);
+        setEndY(top);
+        setDrawing(true);
+        setSourceData(sData);
+        scrollTopRef.current = 0;
+        scrollLeftRef.current = 0;
+        while (scrollEle && scrollEle.tagName !== 'BODY') {
+          scrollTopRef.current += scrollEle.scrollTop;
+          scrollLeftRef.current += scrollEle.scrollLeft;
           scrollEle = scrollEle.parentElement;
         }
       }
     };
-    document.documentElement.onmousemove = (event): void => {
-      if (this.state.drawing) {
-        this.props.onDrawing(this.state.sourceData, this.props.relation);
-        this.setState({
-          endX: event.pageX - this.baseXY.left + scrollLeft,
-          endY: event.pageY - this.baseXY.top + scrollTop
-        });
+
+    const onMouseMove = (event: MouseEvent) => {
+      if (drawing) {
+        props.onDrawing && props.onDrawing(sourceData, props.relation);
+        setEndX(event.pageX - baseXY.current.left + scrollLeftRef.current);
+        setEndY(event.pageY - baseXY.current.top + scrollTopRef.current);
       }
     };
-    document.documentElement.onmouseup = (event): void => {
-      document.body.classList.remove("user-select-none");
-      const { startX, startY, sourceData } = this.state;
-      const eventDom = event.target as unknown as HTMLElement;
-      const className = eventDom && eventDom.className || '';
-      if (className && typeof className === "string" && className.indexOf("target-column-icon") > -1) {
-        const relation = _.assign([], this.props.relation);
-        if (!this.props.targetMutiple && _.find(relation, (o) => {// target不允许映射多次
-          return o.target.key === this.domOperate(eventDom).key;
-        }) || _.find(relation, (o) => { // 过滤连线已存在的情况
-          return o.target.key === this.domOperate(eventDom).key && o.source.key === this.domOperate(sourceDom).key;
-        })) {
-          this.props.changeIconStatus();
-          this.setState({...defaultState});
-          sourceDom = null;
+
+    const onMouseUp = (event: MouseEvent) => {
+      document.body.classList.remove('user-select-none');
+      const eventDom = event.target as HTMLElement;
+      const className = (eventDom && (eventDom.className as string)) || '';
+      if (className && typeof className === 'string' && className.indexOf('target-column-icon') > -1) {
+        let relation = _.assign([], props.relation || []);
+        const targetKey = domOperate(eventDom).key;
+        const sourceKey = sourceDomRef.current ? domOperate(sourceDomRef.current).key : undefined;
+        if ((!props.targetMutiple && _.find(relation, (o: any) => o.target.key === targetKey)) || _.find(relation, (o: any) => o.target.key === targetKey && o.source.key === sourceKey)) {
+          props.changeIconStatus && props.changeIconStatus();
+          resetState();
+          sourceDomRef.current = null;
           return;
         }
-        const targetData = _.find(this.props.targetData, (o) => {
-          return o.key === this.domOperate(eventDom).key;
-        });
+        const tData = _.find(props.targetData || [], (o: any) => o.key === targetKey);
         relation.push({
           source: {
             x: startX,
             y: startY,
-            ...sourceData
+            ...(sourceData || {})
           },
           target: {
-            x: this.domOperate(eventDom).left,
-            y: this.domOperate(eventDom).top,
-            ...targetData
+            x: domOperate(eventDom).left,
+            y: domOperate(eventDom).top,
+            ...(tData || {})
           }
         });
-        this.props.onDrawEnd(sourceData, targetData, relation);
-        this.props.onChange(relation);
-        sourceDom = null;
+        props.onDrawEnd && props.onDrawEnd(sourceData, tData, relation);
+        props.onChange && props.onChange(relation);
+        sourceDomRef.current = null;
       }
-      this.props.changeIconStatus();
-      this.setState({...defaultState});
-      scrollTop = 0;
-      scrollLeft = 0;
+      props.changeIconStatus && props.changeIconStatus();
+      resetState();
     };
-  }
 
-  domOperate(eventDom): DomOperateTypes {
-    return {
-      key: eventDom.offsetParent.getAttribute('data-key'),
-      left: getOffset(eventDom).left - this.baseXY.left + 3,
-      top: getOffset(eventDom).top - this.baseXY.top + 6
+    document.documentElement.addEventListener('mousedown', onMouseDown);
+    document.documentElement.addEventListener('mousemove', onMouseMove);
+    document.documentElement.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      document.documentElement.removeEventListener('mousedown', onMouseDown);
+      document.documentElement.removeEventListener('mousemove', onMouseMove);
+      document.documentElement.removeEventListener('mouseup', onMouseUp);
     };
-  }
-  removeRelation = (removeNode): void => {
-    const relation = _.assign([], this.props.relation);
-    _.remove(relation, item => {
-      return (item === removeNode);
-    });
-    this.props.onChange(relation);
-  }
-  topLine = (item): void => {
-    const relation = _.assign([], this.props.relation);
-    _.remove(relation, (n) => {
-      return n === item;
-    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawing, sourceData, startX, startY, props.relation, props.sourceData, props.targetData, props.sourceMutiple, props.targetMutiple]);
+
+  const resetState = () => {
+    setDrawing(false);
+    setEndX(0);
+    setEndY(0);
+    setStartX(0);
+    setStartY(0);
+    setSourceData(undefined);
+    scrollLeftRef.current = 0;
+    scrollTopRef.current = 0;
+  };
+
+  const domOperate = (eventDom: HTMLElement): DomOperateTypes => ({
+    key: eventDom.offsetParent.getAttribute('data-key') || '',
+    left: getOffset(eventDom).left - baseXY.current.left + 3,
+    top: getOffset(eventDom).top - baseXY.current.top + 6
+  });
+
+  const removeRelation = (removeNode: any) => {
+    const relation = _.assign([], props.relation || []);
+    _.remove(relation, (item) => item === removeNode);
+    props.onChange && props.onChange(relation);
+  };
+
+  const topLine = (item: any) => {
+    const relation = _.assign([], props.relation || []);
+    _.remove(relation, (n) => n === item);
     relation.push(item);
-    this.props.onChange(relation, false);
-  }
-  render(): React.ReactElement {
-    const { startX, startY, drawing, endX, endY } = this.state;
-    const { relation, currentRelation, edit, closeIcon } = this.props;
-    return <div className="lines-area" ref={(me): void => {
-      this.drawEle = me;
-    }}>
+    props.onChange && props.onChange(relation, false);
+  };
+
+  const { relation, currentRelation, edit, closeIcon } = props as any;
+
+  return (
+    <div className="lines-area" ref={drawEleRef}>
       <svg width="100%" height="100%" version="1.1" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker
@@ -179,34 +171,36 @@ class DrawLines extends React.Component<DrawLinesProps, DrawLinesState> {
           </marker>
         </defs>
         <g>
-          {relation.filter(item => {
-            return item.source.key && item.target.key;
-          }).map(item => <Line
-            key={`${item.source.key}-${item.target.key}`}
-            startX={item.source.x}
-            startY={item.source.y}
-            endX={item.target.x}
-            endY={item.target.y}
-            data={item}
-            edit={edit}
-            closeIcon={closeIcon}
-            toTop={this.topLine}
-            currentRelation={currentRelation}
-            removeRelation={this.removeRelation}
-          />)}
+          {relation && relation.filter((item: any) => item.source.key && item.target.key).map((item: any) => (
+            <Line
+              key={`${item.source.key}-${item.target.key}`}
+              startX={item.source.x}
+              startY={item.source.y}
+              endX={item.target.x}
+              endY={item.target.y}
+              data={item}
+              edit={edit}
+              closeIcon={closeIcon}
+              toTop={topLine}
+              currentRelation={currentRelation}
+              removeRelation={removeRelation}
+            />
+          ))}
         </g>
-        {drawing && <g className="path">
+        {drawing && (
+          <g className="path">
             <path
               className="line"
               d={`M${startX}, ${startY} L${endX}, ${endY}`}
               strokeDasharray="5,5"
               markerEnd="url(#markerArrow)"
             />
-        </g>}
+          </g>
+        )}
       </svg>
 
-    </div>;
-  }
-}
+    </div>
+  );
+});
 
 export default DrawLines;

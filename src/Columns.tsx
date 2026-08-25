@@ -1,49 +1,32 @@
 import React from 'react';
-import { isElement } from 'react-dom/test-utils';
-import { ColumnsProps } from './types';
+import { ColumnsProps, DataTypes } from './types';
 
-class Columns extends React.Component<ColumnsProps, null> {
-  constructor(props) {
-    super(props);
-  }
-
-  customRender(opts, data, idx): boolean {
-    const { key, render } = opts;
-    let result = false;
-    if (isElement(render) || typeof render === 'string') {
-      result = render;
+const Columns: React.FC<ColumnsProps> = ({ item, index, columnOpt, sorting, columns, type, edit }) => {
+  const customRender = (opts: any, data: DataTypes, idx: number): React.ReactNode => {
+    const { key, render } = opts as any;
+    if (React.isValidElement(render) || typeof render === 'string') {
+      return render as any;
     } else if (typeof render === 'function') {
-      result = render(data[key], data, idx);
+      return render((data as any)[key], data, idx);
     }
-    return result;
-  }
+    return null;
+  };
 
-  render(): React.ReactElement {
-    const { item, index, columnOpt, sorting, columns, type, edit } = this.props;
-    return <li {...columnOpt(item, index)} >
-      {
-        columns.map((column) => {
-          return (
-            <span
-              key={column.key}
-              className="column-item"
-              style={{
-                width: column.width,
-                textAlign: column.align
-              } as React.CSSProperties}
-              title={item[column.key] || ''}
-            >
-              {
-                this.customRender(column, item, index) ||
-                item[column.key]
-              }
-            </span>
-          );
-        })
-      }
-      <div style={{visibility: edit && item.iconShow}} className={`column-icon ${type}-column-icon ${sorting ? "sorting" : ""} ${edit ? "" : "disabled"}`} />
-    </li>;
-  }
-}
+  return (
+    <li id={`${type}_${index}`} {...(columnOpt ? (columnOpt(item, index) as any) : {})}>
+      {columns && columns.map((column) => (
+        <span
+          key={column.key}
+          className="column-item"
+          style={{ width: column.width, textAlign: column.align } as React.CSSProperties}
+          title={(item as any)[column.key] || ''}
+        >
+          {customRender(column as any, item as DataTypes, index) || (item as any)[column.key]}
+        </span>
+      ))}
+      <div style={{ visibility: edit && (item as any).iconShow }} className={`column-icon ${type}-column-icon ${sorting ? 'sorting' : ''} ${edit ? '' : 'disabled'}`} />
+    </li>
+  );
+};
 
 export default Columns;
