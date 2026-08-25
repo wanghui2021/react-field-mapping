@@ -19,10 +19,11 @@
       "@/*": ["./src/*"]
     },
     "preserveConstEnums": true,
-    "rootDirs": ["/src", "/mock","./typings"],
+    "rootDirs": ["src", "mock", "typings"],
     "sourceMap": true,
-    "suppressImplicitAnyIndexErrors": true,
-    "target": "ES2022"
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
     "./src",
