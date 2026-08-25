@@ -7,20 +7,20 @@ import { calCoord } from './util';
 import _ from 'lodash';
 import {
   FieldMappingProps,
-  FieldMappingState,
   DataTypes,
   OneRelation
 } from './types';
 
+type BoxRef = { boxEle: HTMLElement | null } | null;
+
 const FieldMapping: React.FC<FieldMappingProps> = (props) => {
-  const sourceComRef = useRef<any>(null);
-  const targetComRef = useRef<any>(null);
+  const sourceComRef = useRef<BoxRef>(null);
+  const targetComRef = useRef<BoxRef>(null);
 
   const [relation, setRelation] = useState<OneRelation[]>(props.relation || []);
   const [currentRelation, setCurrentRelation] = useState<OneRelation | undefined>(undefined);
-  const [iconStatus, setIconStatus] = useState<any>(undefined);
+  const [iconStatus, setIconStatus] = useState<OneRelation | undefined>(undefined);
 
-  // helper: mirror previous changeRelation behavior
   const changeRelation = (newRelation: OneRelation[], isUpdate = true) => {
     setRelation(newRelation);
     if (isUpdate && props.onChange) {
@@ -28,24 +28,24 @@ const FieldMapping: React.FC<FieldMappingProps> = (props) => {
     }
   };
 
-  const changeIconStatus = (status: any) => {
+  const changeIconStatus = (status?: OneRelation) => {
     setIconStatus(status);
   };
 
-  const uniqWith = (data: any): DataTypes[] => {
-    return _.uniqWith(data, (n1: any, n2: any) => n1.key === n2.key).filter((item: any) => !!item.key);
+  const uniqWith = (data: DataTypes[]): DataTypes[] => {
+    return _.uniqWith(data, (n1: DataTypes, n2: DataTypes) => n1.key === n2.key).filter((item: DataTypes) => !!item.key);
   };
 
-  const overActive = (item: DataTypes, type: string, active: string) => {
-    const rel = _.assign([], relation) as any[];
-    let cur: any = {};
-    rel.map((n) => {
-      if (n[type].key === item.key) {
+  const overActive = (item: DataTypes, type: 'source' | 'target', active: 'enter' | 'leave') => {
+    const rel = _.assign([], relation) as OneRelation[];
+    let cur: OneRelation | undefined = undefined;
+    rel.forEach((n) => {
+      const side = type === 'source' ? n.source : n.target;
+      if (side && side.key === item.key) {
         if (active === 'enter') {
           cur = n;
-          return;
         } else if (active === 'leave') {
-          cur = {};
+          cur = undefined;
         }
       }
     });
@@ -88,7 +88,6 @@ const FieldMapping: React.FC<FieldMappingProps> = (props) => {
     changeRelation(relationWithCoord, false);
   };
 
-  // watch for prop.relation changes
   useEffect(() => {
     if (props.relation && props.relation !== relation) {
       const relationWithCoord = calCoord(_.assign([], props.relation), {
@@ -101,7 +100,6 @@ const FieldMapping: React.FC<FieldMappingProps> = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.relation]);
 
-  // componentDidMount equivalent: initialize relation from props
   useEffect(() => {
     const relationWithCoord = calCoord(_.assign([], props.relation || []), {
       sourceCom: sourceComRef.current,
@@ -125,10 +123,10 @@ const FieldMapping: React.FC<FieldMappingProps> = (props) => {
     onDrawEnd,
     edit,
     closeIcon
-  } = props as any;
+  } = props;
 
   const sourceOpt = {
-    ref: (me: any) => {
+    ref: (me: BoxRef) => {
       sourceComRef.current = me;
     },
     iconStatus,
@@ -143,7 +141,7 @@ const FieldMapping: React.FC<FieldMappingProps> = (props) => {
   };
 
   const targetOpt = {
-    ref: (me: any) => {
+    ref: (me: BoxRef) => {
       targetComRef.current = me;
     },
     iconStatus,
@@ -169,15 +167,15 @@ const FieldMapping: React.FC<FieldMappingProps> = (props) => {
     edit,
     closeIcon,
     currentRelation,
-    onChange: (r: any, isUpdate?: boolean) => changeRelation(r, isUpdate),
+    onChange: (r: OneRelation[], isUpdate?: boolean) => changeRelation(r, isUpdate),
     changeIconStatus
   };
 
   return (
     <div style={style} className={`react-field-mapping-box ${className}`}>
-      <SourceData {...sourceOpt} />
-      <TargetData {...targetOpt} />
-      <DrawLines {...drawLinesOpt} />
+      <SourceData {...(sourceOpt as any)} />
+      <TargetData {...(targetOpt as any)} />
+      <DrawLines {...(drawLinesOpt as any)} />
     </div>
   );
 };
