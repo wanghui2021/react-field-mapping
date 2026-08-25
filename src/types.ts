@@ -113,3 +113,9 @@ export interface LineProps {
   removeRelation: (item: OneRelation) => void;
   closeIcon: string;
 }
+
+// Imperative handle exposed by SourceData/TargetData/DrawLines
+export interface BoxHandle {
+  boxEle?: HTMLElement | null;
+  drawEle?: HTMLElement | null;
+}
