@@ -80,8 +80,6 @@
   "dependencies": {
     "less": "^3.12.2",
     "lodash": "^4.17.20",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
     "sortablejs": "^1.12.0"
   }
 }
