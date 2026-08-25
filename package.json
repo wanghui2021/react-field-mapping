@@ -47,7 +47,7 @@
     "eslint-plugin-react": "^7.21.1",
     "jsinspect": "^0.12.7",
     "jsdoc": "^4.0.0",
-    "typescript": "^5.5.0",
+    "typescript": "^7.0.0",
     "vite": "^8.0.0",
     "@vitejs/plugin-react-swc": "^3.0.0",
     "vite-plugin-dts": "^3.0.0"
