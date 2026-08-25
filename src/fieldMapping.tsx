@@ -1,6 +1,6 @@
 /* @author yanjun.zsj
  * @date 2018.11
-*/
+ */
 import './fieldMapping.less';
 import React from 'react';
 import SourceData from './sourceData';
@@ -16,8 +16,9 @@ import {
 
 
 class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState> {
-  sourceCom: React.Ref<FieldMapping>
-  targetCom: React.Ref<FieldMapping>
+  // using loose types for refs to simplify migration; can be improved later
+  sourceCom: any
+  targetCom: any
 
   static defaultProps = {
     relation: [],
@@ -56,28 +57,28 @@ class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState>
       this.changeRelation(relation, false);
     }
   }
-  uniqWith(data): DataTypes[] {
+  uniqWith(data: any): DataTypes[] {
     return _.uniqWith(data, (n1, n2) => {
       return n1.key === n2.key;
-    }).filter(item => !!item.key);
+    }).filter((item: any) => !!item.key);
   }
 
-  changeRelation(relation, isUpdate = true): void {
+  changeRelation(relation: any, isUpdate = true): void {
     this.setState({
       relation
     }, () => {
       isUpdate && this.props.onChange && this.props.onChange(relation);
     });
   }
-  changeIconStatus(iconStatus): void{
+  changeIconStatus(iconStatus: any): void{
     this.setState({
       iconStatus
     });
   }
-  overActive(item, type, active): void {
+  overActive(item: any, type: any, active: any): void {
     const relation = _.assign([], this.state.relation);
-    let currentRelation = {};
-    relation.map(n => {
+    let currentRelation: any = {};
+    relation.map((n: any) => {
       if(n[type].key === item.key) {
         if(active === "enter") {
           currentRelation = n;
@@ -91,7 +92,7 @@ class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState>
       currentRelation
     });
   }
-  changeSource(oldIndex, newIndex): void {
+  changeSource(oldIndex: number, newIndex: number): void {
     const {
       source: {
         data: sourceData = [],
@@ -108,7 +109,7 @@ class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState>
     const relation = calCoord(_.assign([], this.props.relation), this);
     this.changeRelation(relation, false);
   }
-  changeTarget(oldIndex, newIndex): void {
+  changeTarget(oldIndex: number, newIndex: number): void {
     const {
       target: {
         data: targetData = [],
@@ -126,7 +127,7 @@ class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState>
     this.changeRelation(relation, false);
   }
   render(): React.ReactElement {
-    const { relation, iconStatus, currentRelation } = this.state;
+    const { relation, iconStatus, currentRelation } = this.state as any;
     const {
       source: {
         data: sourceData = [],
@@ -146,9 +147,9 @@ class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState>
       onDrawEnd,
       edit,
       closeIcon
-    } = this.props;
+    } = this.props as any;
     const sourceOpt = {
-      ref: (me): void => {this.sourceCom = me;},
+      ref: (me: any): void => {this.sourceCom = me;},
       iconStatus,
       relation,
       columns: sourceCols,
@@ -160,7 +161,7 @@ class FieldMapping extends React.Component<FieldMappingProps, FieldMappingState>
       overActive: this.overActive.bind(this)
     };
     const targetOpt = {
-      ref: (me): void => {this.targetCom = me;},
+      ref: (me: any): void => {this.targetCom = me;},
       iconStatus,
       relation,
       columns: targetCols,
