@@ -23,7 +23,8 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
+    "strict": true,
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo",
     "pretty": true
